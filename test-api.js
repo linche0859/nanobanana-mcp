@@ -8,8 +8,8 @@ const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY });
 
 async function testImageGeneration() {
   try {
-    console.log('Testing image generation...');
-    
+    console.log('Testing image generation with 4K output...');
+
     const response = await ai.models.generateContent({
       model: 'gemini-3.1-flash-image-preview',
       contents: 'A serene beach scene with turquoise water and sunset',
@@ -17,14 +17,14 @@ async function testImageGeneration() {
         responseModalities: ['IMAGE', 'TEXT'],
         imageConfig: {
           aspectRatio: '16:9',
-          imageSize: '2K',
+          imageSize: '4K',
           personGeneration: 'allow_adult',
         },
       },
     });
 
     console.log('Response received!');
-    
+
     if (response.candidates?.[0]?.content?.parts) {
       for (const part of response.candidates[0].content.parts) {
         if (part.text) {

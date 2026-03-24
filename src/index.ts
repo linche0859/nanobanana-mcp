@@ -1,32 +1,34 @@
 #!/usr/bin/env node
 
-import * as fs from "fs/promises";
-import * as path from "path";
-import * as os from "os";
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as os from 'os';
 
 // --- CLI: --install-commands ---
-const INSTALL_TARGETS = ["claude-code", "cursor"] as const;
+const INSTALL_TARGETS = ['claude-code', 'cursor'] as const;
 
 const args = process.argv.slice(2);
-const installIdx = args.indexOf("--install-commands");
+const installIdx = args.indexOf('--install-commands');
 if (installIdx !== -1) {
   const target = args[installIdx + 1];
   if (!target || !INSTALL_TARGETS.includes(target as any)) {
-    console.error(`Usage: nanobanana-mcp --install-commands <${INSTALL_TARGETS.join("|")}>`);
+    console.error(
+      `Usage: nanobanana-mcp --install-commands <${INSTALL_TARGETS.join('|')}>`,
+    );
     process.exit(1);
   }
 
-  const { fileURLToPath } = await import("url");
+  const { fileURLToPath } = await import('url');
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const srcDir = path.join(__dirname, "..", "commands", target);
+  const srcDir = path.join(__dirname, '..', 'commands', target);
   const destDir =
-    target === "claude-code"
-      ? path.join(os.homedir(), ".claude", "commands")
-      : path.join(os.homedir(), ".cursor", "commands");
+    target === 'claude-code'
+      ? path.join(os.homedir(), '.claude', 'commands')
+      : path.join(os.homedir(), '.cursor', 'commands');
 
   try {
     const files = await fs.readdir(srcDir);
-    const mdFiles = files.filter((f) => f.endsWith(".md"));
+    const mdFiles = files.filter((f) => f.endsWith('.md'));
     if (mdFiles.length === 0) {
       console.error(`No command files found in ${srcDir}`);
       process.exit(1);
@@ -36,9 +38,11 @@ if (installIdx !== -1) {
       mdFiles.map(async (file) => {
         await fs.copyFile(path.join(srcDir, file), path.join(destDir, file));
         console.log(`  Installed: ${file} → ${destDir}/`);
-      })
+      }),
     );
-    console.log(`\nDone! ${mdFiles.length} command(s) installed for ${target}.`);
+    console.log(
+      `\nDone! ${mdFiles.length} command(s) installed for ${target}.`,
+    );
   } catch (err: any) {
     console.error(`Failed to install commands: ${err.message}`);
     process.exit(1);
@@ -47,40 +51,47 @@ if (installIdx !== -1) {
 }
 
 // --- MCP Server ---
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
-import { GoogleGenerativeAI, Part } from "@google/generative-ai";
-import dotenv from "dotenv";
+} from '@modelcontextprotocol/sdk/types.js';
+import { GoogleGenerativeAI, Part } from '@google/generative-ai';
+import dotenv from 'dotenv';
 
 dotenv.config();
 
 const API_KEY = process.env.GOOGLE_AI_API_KEY;
 
 if (!API_KEY) {
-  console.error("Error: GOOGLE_AI_API_KEY environment variable is required");
+  console.error('Error: GOOGLE_AI_API_KEY environment variable is required');
   process.exit(1);
 }
 
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 // Model selection via environment variable
-type ModelOption = "gemini-3.1-flash-image-preview" | "gemini-3-pro-image-preview";
-const VALID_MODELS: ModelOption[] = ["gemini-3.1-flash-image-preview", "gemini-3-pro-image-preview"];
-const DEFAULT_MODEL: ModelOption = "gemini-3.1-flash-image-preview";
+type ModelOption =
+  | 'gemini-3.1-flash-image-preview'
+  | 'gemini-3-pro-image-preview';
+const VALID_MODELS: ModelOption[] = [
+  'gemini-3.1-flash-image-preview',
+  'gemini-3-pro-image-preview',
+];
+const DEFAULT_MODEL: ModelOption = 'gemini-3.1-flash-image-preview';
 
 const selectedModel = process.env.NANOBANANA_MODEL as ModelOption | undefined;
-const IMAGE_MODEL: ModelOption = selectedModel && VALID_MODELS.includes(selectedModel)
-  ? selectedModel
-  : DEFAULT_MODEL;
+const IMAGE_MODEL: ModelOption =
+  selectedModel && VALID_MODELS.includes(selectedModel)
+    ? selectedModel
+    : DEFAULT_MODEL;
 
 console.error(`NanoBanana MCP: Using model ${IMAGE_MODEL}`);
 
 // Gemini REST API 직접 호출을 위한 설정
-const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+const GEMINI_API_BASE =
+  'https://generativelanguage.googleapis.com/v1beta/models';
 
 // 이미지 생성/편집을 위한 REST API 호출 함수
 interface GeminiImageRequestPart {
@@ -97,32 +108,37 @@ interface GeminiImageResponse {
   error?: string;
 }
 
+const VALID_IMAGE_SIZES = ['1K', '2K', '4K'] as const;
+type ImageSize = (typeof VALID_IMAGE_SIZES)[number];
+
 async function callGeminiImageAPI(
   parts: GeminiImageRequestPart[],
   aspectRatio: string,
-  model: ModelOption = IMAGE_MODEL
+  imageSize: ImageSize | null,
+  model: ModelOption = IMAGE_MODEL,
 ): Promise<GeminiImageResponse> {
   const url = `${GEMINI_API_BASE}/${model}:streamGenerateContent?key=${API_KEY}`;
 
   const requestBody = {
     contents: [
       {
-        role: "user",
+        role: 'user',
         parts,
       },
     ],
     generationConfig: {
-      responseModalities: ["IMAGE", "TEXT"],
+      responseModalities: ['IMAGE', 'TEXT'],
       imageConfig: {
         aspectRatio,
+        ...(imageSize ? { imageSize } : {}),
       },
     },
   };
 
   const response = await fetch(url, {
-    method: "POST",
+    method: 'POST',
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify(requestBody),
   });
@@ -156,22 +172,30 @@ async function callGeminiImageAPI(
     // 파싱 실패 시 원본 텍스트 반환
     return {
       textResponse: responseText,
-      error: "Failed to parse API response",
+      error: 'Failed to parse API response',
     };
   }
 
   return {
     imageData,
-    textResponse: textParts.join(""),
+    textResponse: textParts.join(''),
   };
 }
 
 // 유효한 이미지 비율 목록
 const VALID_ASPECT_RATIOS = [
-  "1:1", "9:16", "16:9", "3:4", "4:3",
-  "3:2", "2:3", "5:4", "4:5", "21:9"
+  '1:1',
+  '9:16',
+  '16:9',
+  '3:4',
+  '4:3',
+  '3:2',
+  '2:3',
+  '5:4',
+  '4:5',
+  '21:9',
 ] as const;
-type AspectRatio = typeof VALID_ASPECT_RATIOS[number];
+type AspectRatio = (typeof VALID_ASPECT_RATIOS)[number];
 
 // 이미지 히스토리 엔트리 - 세션 내 이미지 일관성 유지용
 interface ImageHistoryEntry {
@@ -181,16 +205,17 @@ interface ImageHistoryEntry {
   mimeType: string;
   prompt: string;
   timestamp: number;
-  type: "generated" | "edited";
+  type: 'generated' | 'edited';
 }
 
 interface ConversationContext {
   history: Array<{
-    role: "user" | "model";
+    role: 'user' | 'model';
     parts: Part[];
   }>;
   imageHistory: ImageHistoryEntry[];
   aspectRatio: AspectRatio | null;
+  imageSize: ImageSize | null;
   selectedModel: ModelOption | null;
 }
 
@@ -209,7 +234,7 @@ function generateImageId(): string {
 // 이미지를 히스토리에 추가
 function addImageToHistory(
   context: ConversationContext,
-  entry: ImageHistoryEntry
+  entry: ImageHistoryEntry,
 ): void {
   context.imageHistory.push(entry);
   // 최대 개수 초과 시 오래된 것 제거
@@ -221,7 +246,7 @@ function addImageToHistory(
 // 히스토리에서 이미지 참조 가져오기 ("last", "history:0" 등)
 function getImageFromHistory(
   context: ConversationContext,
-  reference: string
+  reference: string,
 ): ImageHistoryEntry | null {
   if (!context.imageHistory?.length) return null;
 
@@ -244,8 +269,9 @@ function getOrCreateContext(conversationId: string): ConversationContext {
     conversations.set(conversationId, {
       history: [],
       imageHistory: [],
-      aspectRatio: null,  // Must be set via set_aspect_ratio before image generation
-      selectedModel: null,  // Uses IMAGE_MODEL (env default) if not set
+      aspectRatio: null, // Must be set via set_aspect_ratio before image generation
+      imageSize: null, // Uses Gemini API default (1K) until explicitly set
+      selectedModel: null, // Uses IMAGE_MODEL (env default) if not set
     });
   }
   return conversations.get(conversationId)!;
@@ -253,206 +279,255 @@ function getOrCreateContext(conversationId: string): ConversationContext {
 
 async function imageToBase64(imagePath: string): Promise<string> {
   const imageBuffer = await fs.readFile(imagePath);
-  return imageBuffer.toString("base64");
+  return imageBuffer.toString('base64');
 }
 
-
-async function saveImageFromBuffer(buffer: Buffer, outputPath: string): Promise<void> {
+async function saveImageFromBuffer(
+  buffer: Buffer,
+  outputPath: string,
+): Promise<void> {
   // Ensure directory exists
   const dir = path.dirname(outputPath);
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(outputPath, buffer);
 }
 
-
 const server = new Server(
   {
-    name: "nanobanana-mcp",
-    version: "1.0.0",
+    name: 'nanobanana-mcp',
+    version: '1.0.0',
   },
   {
     capabilities: {
       tools: {},
     },
-  }
+  },
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
-        name: "gemini_chat",
-        description: "Chat with Gemini 3.1 Flash model. Supports multi-turn conversations with up to 10 reference images.",
+        name: 'gemini_chat',
+        description:
+          'Chat with Gemini 3.1 Flash model. Supports multi-turn conversations with up to 10 reference images.',
         inputSchema: {
-          type: "object",
+          type: 'object',
           properties: {
             message: {
-              type: "string",
-              description: "The message to send to Gemini",
+              type: 'string',
+              description: 'The message to send to Gemini',
             },
             images: {
-              type: "array",
-              items: { type: "string" },
-              description: "Array of image paths to include in the chat (max 10). Supports file paths, 'last', or 'history:N' references.",
+              type: 'array',
+              items: { type: 'string' },
+              description:
+                "Array of image paths to include in the chat (max 10). Supports file paths, 'last', or 'history:N' references.",
               maxItems: 10,
             },
             conversation_id: {
-              type: "string",
-              description: "Optional conversation ID for maintaining context and accessing image history",
+              type: 'string',
+              description:
+                'Optional conversation ID for maintaining context and accessing image history',
             },
             system_prompt: {
-              type: "string",
-              description: "Optional system prompt to guide the model's behavior",
+              type: 'string',
+              description:
+                "Optional system prompt to guide the model's behavior",
             },
           },
-          required: ["message"],
+          required: ['message'],
         },
       },
       {
-        name: "gemini_generate_image",
-        description: "Generate images using Gemini's image generation capabilities. Supports session-based image consistency for maintaining style/character across multiple generations.",
+        name: 'gemini_generate_image',
+        description:
+          "Generate images using Gemini's image generation capabilities. Supports session-based image consistency for maintaining style/character across multiple generations.",
         inputSchema: {
-          type: "object",
+          type: 'object',
           properties: {
             prompt: {
-              type: "string",
-              description: "Description of the image to generate",
+              type: 'string',
+              description: 'Description of the image to generate',
             },
             aspect_ratio: {
-              type: "string",
+              type: 'string',
               enum: [...VALID_ASPECT_RATIOS],
-              description: "Aspect ratio for the generated image. Overrides session setting if provided.",
+              description:
+                'Aspect ratio for the generated image. Overrides session setting if provided.',
             },
             output_path: {
-              type: "string",
-              description: "Optional path where to save the generated image. If not provided, saves to ~/Documents/nanobanana_generated/",
+              type: 'string',
+              description:
+                'Optional path where to save the generated image. If not provided, saves to ~/Documents/nanobanana_generated/',
             },
             conversation_id: {
-              type: "string",
-              description: "Session ID for maintaining image history and consistency across generations",
+              type: 'string',
+              description:
+                'Session ID for maintaining image history and consistency across generations',
             },
             use_image_history: {
-              type: "boolean",
-              description: "If true, includes previous generated images from this session for style/character consistency",
+              type: 'boolean',
+              description:
+                'If true, includes previous generated images from this session for style/character consistency',
             },
             reference_images: {
-              type: "array",
-              items: { type: "string" },
-              description: "Array of file paths to reference images for style/character consistency",
+              type: 'array',
+              items: { type: 'string' },
+              description:
+                'Array of file paths to reference images for style/character consistency',
             },
             enable_google_search: {
-              type: "boolean",
-              description: "Enable Google Search for real-world reference grounding",
+              type: 'boolean',
+              description:
+                'Enable Google Search for real-world reference grounding',
             },
           },
-          required: ["prompt"],
+          required: ['prompt'],
         },
       },
       {
-        name: "gemini_edit_image",
-        description: "Edit or modify existing images based on prompts. Supports session history references ('last' or 'history:N') and image consistency features.",
+        name: 'gemini_edit_image',
+        description:
+          "Edit or modify existing images based on prompts. Supports session history references ('last' or 'history:N'), image consistency features, and session-configured image size (1K, 2K, 4K).",
         inputSchema: {
-          type: "object",
+          type: 'object',
           properties: {
             image_path: {
-              type: "string",
-              description: "Path to the original image. Use 'last' for most recent generated image, or 'history:N' (e.g., 'history:0') to reference by index",
+              type: 'string',
+              description:
+                "Path to the original image. Use 'last' for most recent generated image, or 'history:N' (e.g., 'history:0') to reference by index",
             },
             edit_prompt: {
-              type: "string",
-              description: "Instructions for how to edit the image",
+              type: 'string',
+              description: 'Instructions for how to edit the image',
             },
             aspect_ratio: {
-              type: "string",
+              type: 'string',
               enum: [...VALID_ASPECT_RATIOS],
-              description: "Aspect ratio for the edited image. Overrides session setting if provided.",
+              description:
+                'Aspect ratio for the edited image. Overrides session setting if provided.',
             },
             output_path: {
-              type: "string",
-              description: "Optional output path. If not provided, saves to ~/Documents/nanobanana_generated/",
+              type: 'string',
+              description:
+                'Optional output path. If not provided, saves to ~/Documents/nanobanana_generated/',
             },
             conversation_id: {
-              type: "string",
-              description: "Session ID for accessing image history and maintaining consistency",
+              type: 'string',
+              description:
+                'Session ID for accessing image history and maintaining consistency',
             },
             reference_images: {
-              type: "array",
-              items: { type: "string" },
-              description: "Additional reference images for style consistency (max 10). Supports file paths, 'last', or 'history:N' references.",
+              type: 'array',
+              items: { type: 'string' },
+              description:
+                "Additional reference images for style consistency (max 10). Supports file paths, 'last', or 'history:N' references.",
               maxItems: 10,
             },
             enable_google_search: {
-              type: "boolean",
-              description: "Enable Google Search for real-world reference grounding",
+              type: 'boolean',
+              description:
+                'Enable Google Search for real-world reference grounding',
             },
           },
-          required: ["image_path", "edit_prompt"],
+          required: ['image_path', 'edit_prompt'],
         },
       },
       {
-        name: "get_image_history",
-        description: "Get the list of generated/edited images in a session for reference",
+        name: 'get_image_history',
+        description:
+          'Get the list of generated/edited images in a session for reference',
         inputSchema: {
-          type: "object",
+          type: 'object',
           properties: {
             conversation_id: {
-              type: "string",
-              description: "The session ID to get image history for",
+              type: 'string',
+              description: 'The session ID to get image history for',
             },
           },
-          required: ["conversation_id"],
+          required: ['conversation_id'],
         },
       },
       {
-        name: "clear_conversation",
-        description: "Clear conversation history for a specific conversation ID",
+        name: 'clear_conversation',
+        description:
+          'Clear conversation history for a specific conversation ID',
         inputSchema: {
-          type: "object",
+          type: 'object',
           properties: {
             conversation_id: {
-              type: "string",
-              description: "The conversation ID to clear",
+              type: 'string',
+              description: 'The conversation ID to clear',
             },
           },
-          required: ["conversation_id"],
+          required: ['conversation_id'],
         },
       },
       {
-        name: "set_aspect_ratio",
-        description: "Set the aspect ratio for subsequent image generation and editing in this session. Must be called before generating/editing images if a specific ratio is desired.",
+        name: 'set_aspect_ratio',
+        description:
+          'Set the aspect ratio for subsequent image generation and editing in this session. Must be called before generating/editing images if a specific ratio is desired.',
         inputSchema: {
-          type: "object",
+          type: 'object',
           properties: {
             aspect_ratio: {
-              type: "string",
+              type: 'string',
               enum: [...VALID_ASPECT_RATIOS],
-              description: "The aspect ratio to use for image generation/editing",
+              description:
+                'The aspect ratio to use for image generation/editing',
             },
             conversation_id: {
-              type: "string",
-              description: "Session ID to apply this setting to (default: 'default')",
+              type: 'string',
+              description:
+                "Session ID to apply this setting to (default: 'default')",
             },
           },
-          required: ["aspect_ratio"],
+          required: ['aspect_ratio'],
         },
       },
       {
-        name: "set_model",
-        description: "Set the Gemini model for this session. 'flash' for faster generation (default), 'pro' for higher quality.",
+        name: 'set_model',
+        description:
+          "Set the Gemini model for this session. 'flash' for faster generation (default), 'pro' for higher quality.",
         inputSchema: {
-          type: "object",
+          type: 'object',
           properties: {
             model: {
-              type: "string",
-              enum: ["flash", "pro"],
-              description: "Model to use: 'flash' (gemini-3.1-flash-image-preview) or 'pro' (gemini-3-pro-image-preview)",
+              type: 'string',
+              enum: ['flash', 'pro'],
+              description:
+                "Model to use: 'flash' (gemini-3.1-flash-image-preview) or 'pro' (gemini-3-pro-image-preview)",
             },
             conversation_id: {
-              type: "string",
-              description: "Session ID to apply this setting to (default: 'default')",
+              type: 'string',
+              description:
+                "Session ID to apply this setting to (default: 'default')",
             },
           },
-          required: ["model"],
+          required: ['model'],
+        },
+      },
+      {
+        name: 'set_image_size',
+        description:
+          'Set the output image size for this session. Supports 1K, 2K, or 4K. If not set, Gemini API defaults to 1K.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            image_size: {
+              type: 'string',
+              enum: [...VALID_IMAGE_SIZES],
+              description:
+                'Output image size for generation/editing: 1K, 2K, or 4K',
+            },
+            conversation_id: {
+              type: 'string',
+              description:
+                "Session ID to apply this setting to (default: 'default')",
+            },
+          },
+          required: ['image_size'],
         },
       },
     ],
@@ -464,8 +539,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     switch (name) {
-      case "gemini_chat": {
-        const { message, conversation_id = "default", system_prompt, images = [] } = args as any;
+      case 'gemini_chat': {
+        const {
+          message,
+          conversation_id = 'default',
+          system_prompt,
+          images = [],
+        } = args as any;
 
         const context = getOrCreateContext(conversation_id);
         const effectiveModel = context.selectedModel ?? IMAGE_MODEL;
@@ -501,14 +581,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 await fs.access(resolvedPath);
               } catch {
                 const homeDir = os.homedir();
-                const altPath = path.join(homeDir, 'Documents', 'nanobanana_generated', path.basename(imgRef));
+                const altPath = path.join(
+                  homeDir,
+                  'Documents',
+                  'nanobanana_generated',
+                  path.basename(imgRef),
+                );
                 await fs.access(altPath);
                 resolvedPath = altPath;
               }
               const base64 = await imageToBase64(resolvedPath);
               messageParts.push({
                 inlineData: {
-                  mimeType: "image/png",
+                  mimeType: 'image/png',
                   data: base64,
                 },
               });
@@ -523,7 +608,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         // Add user message to history
         context.history.push({
-          role: "user",
+          role: 'user',
           parts: messageParts,
         });
 
@@ -538,31 +623,34 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         // Add model response to history
         context.history.push({
-          role: "model",
+          role: 'model',
           parts: [{ text }],
         });
 
         const imageCount = messageParts.length - 1;
-        let responseText = imageCount > 0
-          ? `[${imageCount} image(s) included]\n\n${text}`
-          : text;
+        let responseText =
+          imageCount > 0
+            ? `[${imageCount} image(s) included]\n\n${text}`
+            : text;
 
         if (failedImages.length > 0) {
           responseText += `\n\nWarning: ${failedImages.length} image(s) could not be loaded:\n`;
-          responseText += failedImages.map(f => `  - ${f.path}: ${f.reason}`).join('\n');
+          responseText += failedImages
+            .map((f) => `  - ${f.path}: ${f.reason}`)
+            .join('\n');
         }
 
         return {
-          content: [{ type: "text", text: responseText }],
+          content: [{ type: 'text', text: responseText }],
         };
       }
 
-      case "gemini_generate_image": {
+      case 'gemini_generate_image': {
         const {
           prompt,
           aspect_ratio,
           output_path,
-          conversation_id = "default",
+          conversation_id = 'default',
           use_image_history = false,
           reference_images = [],
         } = args as any;
@@ -570,14 +658,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         try {
           // 대화 컨텍스트 가져오기/생성
           const context = getOrCreateContext(conversation_id);
+          const effectiveImageSize = context.imageSize;
 
           // Validate directly passed aspect_ratio
-          if (aspect_ratio && !VALID_ASPECT_RATIOS.includes(aspect_ratio as AspectRatio)) {
+          if (
+            aspect_ratio &&
+            !VALID_ASPECT_RATIOS.includes(aspect_ratio as AspectRatio)
+          ) {
             return {
-              content: [{
-                type: "text",
-                text: `Invalid aspect ratio: ${aspect_ratio}. Valid: ${VALID_ASPECT_RATIOS.join(", ")}`,
-              }],
+              content: [
+                {
+                  type: 'text',
+                  text: `Invalid aspect ratio: ${aspect_ratio}. Valid: ${VALID_ASPECT_RATIOS.join(', ')}`,
+                },
+              ],
               isError: true,
             };
           }
@@ -588,17 +682,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           // aspectRatio 필수 체크 (둘 다 없으면 에러)
           if (effectiveAspectRatio === null) {
             return {
-              content: [{
-                type: "text",
-                text: `Error: Aspect ratio not specified. Either pass aspect_ratio parameter or call set_aspect_ratio first.\nValid ratios: ${VALID_ASPECT_RATIOS.join(", ")}`,
-              }],
+              content: [
+                {
+                  type: 'text',
+                  text: `Error: Aspect ratio not specified. Either pass aspect_ratio parameter or call set_aspect_ratio first.\nValid ratios: ${VALID_ASPECT_RATIOS.join(', ')}`,
+                },
+              ],
               isError: true,
             };
           }
 
           // contents 구성: 참조 이미지 + 히스토리 이미지 + 프롬프트
           const parts: GeminiImageRequestPart[] = [];
-          const failedReferenceImages: Array<{ path: string; reason: string }> = [];
+          const failedReferenceImages: Array<{ path: string; reason: string }> =
+            [];
 
           // 1. 수동 지정 참조 이미지 추가
           if (reference_images && reference_images.length > 0) {
@@ -611,14 +708,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 const base64 = await imageToBase64(resolvedPath);
                 parts.push({
                   inlineData: {
-                    mimeType: "image/png",
+                    mimeType: 'image/png',
                     data: base64,
                   },
                 });
               } catch (error) {
                 failedReferenceImages.push({
                   path: imgPath,
-                  reason: error instanceof Error ? error.message : String(error),
+                  reason:
+                    error instanceof Error ? error.message : String(error),
                 });
               }
             }
@@ -626,7 +724,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
           // 2. 히스토리 이미지 추가 (일관성 유지용)
           if (use_image_history && context.imageHistory.length > 0) {
-            const recentImages = context.imageHistory.slice(-MAX_REFERENCE_IMAGES);
+            const recentImages =
+              context.imageHistory.slice(-MAX_REFERENCE_IMAGES);
             for (const img of recentImages) {
               parts.push({
                 inlineData: {
@@ -646,25 +745,37 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
           // REST API 직접 호출 (세션 모델 우선, 없으면 환경 변수 기본값)
           const effectiveModel = context.selectedModel ?? IMAGE_MODEL;
-          const apiResponse = await callGeminiImageAPI(parts, effectiveAspectRatio, effectiveModel);
+          const apiResponse = await callGeminiImageAPI(
+            parts,
+            effectiveAspectRatio,
+            effectiveImageSize,
+            effectiveModel,
+          );
 
           if (apiResponse.error) {
             return {
-              content: [{
-                type: "text",
-                text: `Image generation failed: ${apiResponse.error}\n${apiResponse.textResponse}`,
-              }],
+              content: [
+                {
+                  type: 'text',
+                  text: `Image generation failed: ${apiResponse.error}\n${apiResponse.textResponse}`,
+                },
+              ],
               isError: true,
             };
           }
 
           if (!apiResponse.imageData) {
             return {
-              content: [{
-                type: "text",
-                text: `Image generation failed.\nPrompt: "${prompt}"\n` +
-                      (apiResponse.textResponse ? `Model response: ${apiResponse.textResponse}` : 'No image returned from model'),
-              }],
+              content: [
+                {
+                  type: 'text',
+                  text:
+                    `Image generation failed.\nPrompt: "${prompt}"\n` +
+                    (apiResponse.textResponse
+                      ? `Model response: ${apiResponse.textResponse}`
+                      : 'No image returned from model'),
+                },
+              ],
               isError: true,
             };
           }
@@ -673,7 +784,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           let finalPath = output_path;
           if (!finalPath) {
             const homeDir = os.homedir();
-            const tempDir = path.join(homeDir, 'Documents', 'nanobanana_generated');
+            const tempDir = path.join(
+              homeDir,
+              'Documents',
+              'nanobanana_generated',
+            );
             await fs.mkdir(tempDir, { recursive: true });
             const filename = `generated_${Date.now()}.png`;
             finalPath = path.join(tempDir, filename);
@@ -695,20 +810,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             id: generateImageId(),
             filePath: finalPath,
             base64Data: apiResponse.imageData,
-            mimeType: "image/png",
+            mimeType: 'image/png',
             prompt: prompt,
             timestamp: Date.now(),
-            type: "generated",
+            type: 'generated',
           });
 
-          let successText = `Image generated successfully!\n` +
-                `Prompt: "${prompt}"\n` +
-                `Saved to: ${finalPath}\n` +
-                `Session: ${conversation_id} (history: ${context.imageHistory.length} images)`;
+          let successText =
+            `Image generated successfully!\n` +
+            `Prompt: "${prompt}"\n` +
+            `Image size: ${effectiveImageSize ?? '1K (Gemini API default)'}\n` +
+            `Saved to: ${finalPath}\n` +
+            `Session: ${conversation_id} (history: ${context.imageHistory.length} images)`;
 
           if (failedReferenceImages.length > 0) {
             successText += `\n\nWarning: ${failedReferenceImages.length} reference image(s) could not be loaded:\n`;
-            successText += failedReferenceImages.map(f => `  - ${f.path}: ${f.reason}`).join('\n');
+            successText += failedReferenceImages
+              .map((f) => `  - ${f.path}: ${f.reason}`)
+              .join('\n');
           }
 
           if (apiResponse.textResponse) {
@@ -717,41 +836,53 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
           return {
             content: [
-              { type: "image", data: apiResponse.imageData, mimeType: "image/png" },
-              { type: "text", text: successText },
+              {
+                type: 'image',
+                data: apiResponse.imageData,
+                mimeType: 'image/png',
+              },
+              { type: 'text', text: successText },
             ],
           };
         } catch (error) {
           return {
-            content: [{
-              type: "text",
-              text: `Error generating image: ${error instanceof Error ? error.message : String(error)}`,
-            }],
+            content: [
+              {
+                type: 'text',
+                text: `Error generating image: ${error instanceof Error ? error.message : String(error)}`,
+              },
+            ],
           };
         }
       }
 
-      case "gemini_edit_image": {
+      case 'gemini_edit_image': {
         const {
           image_path,
           edit_prompt,
           aspect_ratio,
           output_path,
-          conversation_id = "default",
+          conversation_id = 'default',
           reference_images = [],
         } = args as any;
 
         try {
           // 대화 컨텍스트 가져오기/생성
           const context = getOrCreateContext(conversation_id);
+          const effectiveImageSize = context.imageSize;
 
           // Validate directly passed aspect_ratio
-          if (aspect_ratio && !VALID_ASPECT_RATIOS.includes(aspect_ratio as AspectRatio)) {
+          if (
+            aspect_ratio &&
+            !VALID_ASPECT_RATIOS.includes(aspect_ratio as AspectRatio)
+          ) {
             return {
-              content: [{
-                type: "text",
-                text: `Invalid aspect ratio: ${aspect_ratio}. Valid: ${VALID_ASPECT_RATIOS.join(", ")}`,
-              }],
+              content: [
+                {
+                  type: 'text',
+                  text: `Invalid aspect ratio: ${aspect_ratio}. Valid: ${VALID_ASPECT_RATIOS.join(', ')}`,
+                },
+              ],
               isError: true,
             };
           }
@@ -762,10 +893,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           // aspectRatio 필수 체크 (둘 다 없으면 에러)
           if (effectiveAspectRatio === null) {
             return {
-              content: [{
-                type: "text",
-                text: `Error: Aspect ratio not specified. Either pass aspect_ratio parameter or call set_aspect_ratio first.\nValid ratios: ${VALID_ASPECT_RATIOS.join(", ")}`,
-              }],
+              content: [
+                {
+                  type: 'text',
+                  text: `Error: Aspect ratio not specified. Either pass aspect_ratio parameter or call set_aspect_ratio first.\nValid ratios: ${VALID_ASPECT_RATIOS.join(', ')}`,
+                },
+              ],
               isError: true,
             };
           }
@@ -791,12 +924,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             } catch {
               // If file doesn't exist in CWD, try in Documents/nanobanana_generated
               const homeDir = os.homedir();
-              const altPath = path.join(homeDir, 'Documents', 'nanobanana_generated', path.basename(image_path));
+              const altPath = path.join(
+                homeDir,
+                'Documents',
+                'nanobanana_generated',
+                path.basename(image_path),
+              );
               try {
                 await fs.access(altPath);
                 resolvedImagePath = altPath;
               } catch {
-                throw new Error(`Image file not found: ${image_path}. Use 'last' or 'history:N' to reference session images.`);
+                throw new Error(
+                  `Image file not found: ${image_path}. Use 'last' or 'history:N' to reference session images.`,
+                );
               }
             }
 
@@ -806,10 +946,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
           // contents 구성: 참조 이미지들 + 프롬프트 + 원본 이미지
           const parts: GeminiImageRequestPart[] = [];
-          const failedReferenceImages: Array<{ path: string; reason: string }> = [];
+          const failedReferenceImages: Array<{ path: string; reason: string }> =
+            [];
 
           // 1. 추가 참조 이미지 (스타일 일관성용, 최대 10개)
-          const refImages = (reference_images as string[] || []).slice(0, 10);
+          const refImages = ((reference_images as string[]) || []).slice(0, 10);
           for (const imgRef of refImages) {
             try {
               // Check for history reference
@@ -832,14 +973,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                   await fs.access(refPath);
                 } catch {
                   const homeDir = os.homedir();
-                  const altPath = path.join(homeDir, 'Documents', 'nanobanana_generated', path.basename(imgRef));
+                  const altPath = path.join(
+                    homeDir,
+                    'Documents',
+                    'nanobanana_generated',
+                    path.basename(imgRef),
+                  );
                   await fs.access(altPath);
                   refPath = altPath;
                 }
                 const refBase64 = await imageToBase64(refPath);
                 parts.push({
                   inlineData: {
-                    mimeType: "image/png",
+                    mimeType: 'image/png',
                     data: refBase64,
                   },
                 });
@@ -861,32 +1007,44 @@ IMPORTANT: Create a completely new image that incorporates the requested changes
           // 3. 원본 이미지
           parts.push({
             inlineData: {
-              mimeType: "image/png",
+              mimeType: 'image/png',
               data: imageBase64,
             },
           });
 
           // REST API 직접 호출 (세션 모델 우선, 없으면 환경 변수 기본값)
           const effectiveModel = context.selectedModel ?? IMAGE_MODEL;
-          const apiResponse = await callGeminiImageAPI(parts, effectiveAspectRatio, effectiveModel);
+          const apiResponse = await callGeminiImageAPI(
+            parts,
+            effectiveAspectRatio,
+            effectiveImageSize,
+            effectiveModel,
+          );
 
           if (apiResponse.error) {
             return {
-              content: [{
-                type: "text",
-                text: `Image editing failed: ${apiResponse.error}\n${apiResponse.textResponse}`,
-              }],
+              content: [
+                {
+                  type: 'text',
+                  text: `Image editing failed: ${apiResponse.error}\n${apiResponse.textResponse}`,
+                },
+              ],
               isError: true,
             };
           }
 
           if (!apiResponse.imageData) {
             return {
-              content: [{
-                type: "text",
-                text: `Image editing failed.\nOriginal: ${image_path}\nEdit request: "${edit_prompt}"\n` +
-                      (apiResponse.textResponse ? `Model response: ${apiResponse.textResponse}` : 'No image returned from model'),
-              }],
+              content: [
+                {
+                  type: 'text',
+                  text:
+                    `Image editing failed.\nOriginal: ${image_path}\nEdit request: "${edit_prompt}"\n` +
+                    (apiResponse.textResponse
+                      ? `Model response: ${apiResponse.textResponse}`
+                      : 'No image returned from model'),
+                },
+              ],
               isError: true,
             };
           }
@@ -894,9 +1052,15 @@ IMPORTANT: Create a completely new image that incorporates the requested changes
           // Determine output path - ensure PNG extension for edited images
           let finalPath = output_path;
           if (!finalPath) {
-            const origName = historyImage ? `history_${historyImage.id}` : path.parse(image_path).name;
+            const origName = historyImage
+              ? `history_${historyImage.id}`
+              : path.parse(image_path).name;
             const homeDir = os.homedir();
-            const tempDir = path.join(homeDir, 'Documents', 'nanobanana_generated');
+            const tempDir = path.join(
+              homeDir,
+              'Documents',
+              'nanobanana_generated',
+            );
             await fs.mkdir(tempDir, { recursive: true });
             const filename = `${origName}_edited_${Date.now()}.png`;
             finalPath = path.join(tempDir, filename);
@@ -918,21 +1082,25 @@ IMPORTANT: Create a completely new image that incorporates the requested changes
             id: generateImageId(),
             filePath: finalPath,
             base64Data: apiResponse.imageData,
-            mimeType: "image/png",
+            mimeType: 'image/png',
             prompt: edit_prompt,
             timestamp: Date.now(),
-            type: "edited",
+            type: 'edited',
           });
 
-          let successText = `Image edited successfully!\n` +
-                `Original: ${historyImage ? `[${image_path}] ${resolvedImagePath}` : resolvedImagePath}\n` +
-                `Edit request: "${edit_prompt}"\n` +
-                `Saved to: ${finalPath}\n` +
-                `Session: ${conversation_id} (history: ${context.imageHistory.length} images)`;
+          let successText =
+            `Image edited successfully!\n` +
+            `Original: ${historyImage ? `[${image_path}] ${resolvedImagePath}` : resolvedImagePath}\n` +
+            `Edit request: "${edit_prompt}"\n` +
+            `Image size: ${effectiveImageSize ?? '1K (Gemini API default)'}\n` +
+            `Saved to: ${finalPath}\n` +
+            `Session: ${conversation_id} (history: ${context.imageHistory.length} images)`;
 
           if (failedReferenceImages.length > 0) {
             successText += `\n\nWarning: ${failedReferenceImages.length} reference image(s) could not be loaded:\n`;
-            successText += failedReferenceImages.map(f => `  - ${f.path}: ${f.reason}`).join('\n');
+            successText += failedReferenceImages
+              .map((f) => `  - ${f.path}: ${f.reason}`)
+              .join('\n');
           }
 
           if (apiResponse.textResponse) {
@@ -941,21 +1109,27 @@ IMPORTANT: Create a completely new image that incorporates the requested changes
 
           return {
             content: [
-              { type: "image", data: apiResponse.imageData, mimeType: "image/png" },
-              { type: "text", text: successText },
+              {
+                type: 'image',
+                data: apiResponse.imageData,
+                mimeType: 'image/png',
+              },
+              { type: 'text', text: successText },
             ],
           };
         } catch (error) {
           return {
-            content: [{
-              type: "text",
-              text: `Error editing image: ${error instanceof Error ? error.message : String(error)}`,
-            }],
+            content: [
+              {
+                type: 'text',
+                text: `Error editing image: ${error instanceof Error ? error.message : String(error)}`,
+              },
+            ],
           };
         }
       }
 
-      case "get_image_history": {
+      case 'get_image_history': {
         const { conversation_id } = args as any;
 
         const context = conversations.get(conversation_id);
@@ -963,7 +1137,7 @@ IMPORTANT: Create a completely new image that incorporates the requested changes
           return {
             content: [
               {
-                type: "text",
+                type: 'text',
                 text: `No image history found for session: ${conversation_id}`,
               },
             ],
@@ -983,39 +1157,42 @@ IMPORTANT: Create a completely new image that incorporates the requested changes
         return {
           content: [
             {
-              type: "text",
-              text: `Image History for session "${conversation_id}" (${context.imageHistory.length} images):\n\n` +
-                    `Use "last" to reference the most recent image, or "history:N" (e.g., "history:0") to reference by index.\n\n` +
-                    JSON.stringify(historyInfo, null, 2),
+              type: 'text',
+              text:
+                `Image History for session "${conversation_id}" (${context.imageHistory.length} images):\n\n` +
+                `Use "last" to reference the most recent image, or "history:N" (e.g., "history:0") to reference by index.\n\n` +
+                JSON.stringify(historyInfo, null, 2),
             },
           ],
         };
       }
 
-      case "clear_conversation": {
+      case 'clear_conversation': {
         const { conversation_id } = args as any;
         conversations.delete(conversation_id);
 
         return {
           content: [
             {
-              type: "text",
+              type: 'text',
               text: `Conversation history cleared for ID: ${conversation_id}`,
             },
           ],
         };
       }
 
-      case "set_aspect_ratio": {
-        const { aspect_ratio, conversation_id = "default" } = args as any;
+      case 'set_aspect_ratio': {
+        const { aspect_ratio, conversation_id = 'default' } = args as any;
 
         // Validate aspect ratio
         if (!VALID_ASPECT_RATIOS.includes(aspect_ratio as AspectRatio)) {
           return {
-            content: [{
-              type: "text",
-              text: `Invalid aspect ratio: ${aspect_ratio}. Valid: ${VALID_ASPECT_RATIOS.join(", ")}`,
-            }],
+            content: [
+              {
+                type: 'text',
+                text: `Invalid aspect ratio: ${aspect_ratio}. Valid: ${VALID_ASPECT_RATIOS.join(', ')}`,
+              },
+            ],
             isError: true,
           };
         }
@@ -1024,27 +1201,31 @@ IMPORTANT: Create a completely new image that incorporates the requested changes
         context.aspectRatio = aspect_ratio as AspectRatio;
 
         return {
-          content: [{
-            type: "text",
-            text: `✓ Aspect ratio set to ${aspect_ratio} for session: ${conversation_id}\nThis will apply to both image generation and editing.`,
-          }],
+          content: [
+            {
+              type: 'text',
+              text: `✓ Aspect ratio set to ${aspect_ratio} for session: ${conversation_id}\nThis will apply to both image generation and editing.`,
+            },
+          ],
         };
       }
 
-      case "set_model": {
-        const { model, conversation_id = "default" } = args as any;
+      case 'set_model': {
+        const { model, conversation_id = 'default' } = args as any;
 
         const modelMap: Record<string, ModelOption> = {
-          "flash": "gemini-3.1-flash-image-preview",
-          "pro": "gemini-3-pro-image-preview",
+          flash: 'gemini-3.1-flash-image-preview',
+          pro: 'gemini-3-pro-image-preview',
         };
 
         if (!modelMap[model]) {
           return {
-            content: [{
-              type: "text",
-              text: `Invalid model: ${model}. Use 'flash' or 'pro'.`,
-            }],
+            content: [
+              {
+                type: 'text',
+                text: `Invalid model: ${model}. Use 'flash' or 'pro'.`,
+              },
+            ],
             isError: true,
           };
         }
@@ -1053,10 +1234,40 @@ IMPORTANT: Create a completely new image that incorporates the requested changes
         context.selectedModel = modelMap[model];
 
         return {
-          content: [{
-            type: "text",
-            text: `✓ Model set to ${model} (${modelMap[model]}) for session: ${conversation_id}`,
-          }],
+          content: [
+            {
+              type: 'text',
+              text: `✓ Model set to ${model} (${modelMap[model]}) for session: ${conversation_id}`,
+            },
+          ],
+        };
+      }
+
+      case 'set_image_size': {
+        const { image_size, conversation_id = 'default' } = args as any;
+
+        if (!VALID_IMAGE_SIZES.includes(image_size as ImageSize)) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Invalid image size: ${image_size}. Valid: ${VALID_IMAGE_SIZES.join(', ')}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const context = getOrCreateContext(conversation_id);
+        context.imageSize = image_size as ImageSize;
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `✓ Image size set to ${image_size} for session: ${conversation_id}\nThis will apply to both image generation and editing.`,
+            },
+          ],
         };
       }
 
@@ -1067,7 +1278,7 @@ IMPORTANT: Create a completely new image that incorporates the requested changes
     return {
       content: [
         {
-          type: "text",
+          type: 'text',
           text: `Error: ${error instanceof Error ? error.message : String(error)}`,
         },
       ],
@@ -1079,10 +1290,10 @@ IMPORTANT: Create a completely new image that incorporates the requested changes
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Gemini MCP server running on stdio");
+  console.error('Gemini MCP server running on stdio');
 }
 
 main().catch((error) => {
-  console.error("Fatal error:", error);
+  console.error('Fatal error:', error);
   process.exit(1);
 });

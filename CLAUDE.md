@@ -26,15 +26,16 @@ Single-file MCP server (`src/index.ts`) using stdio transport:
 
 ### Tools Exposed
 
-| Tool | Model | Purpose |
-|------|-------|---------|
-| `set_aspect_ratio` | N/A | **Required before image generation/editing.** Set aspect ratio for session |
-| `set_model` | N/A | Switch between flash/pro models at runtime |
-| `gemini_chat` | configurable | Multi-turn conversation with up to 10 images |
-| `gemini_generate_image` | configurable | 2K image generation with consistency support |
-| `gemini_edit_image` | configurable | Image editing via natural language |
-| `get_image_history` | N/A | View session image history |
-| `clear_conversation` | N/A | Reset conversation context |
+| Tool                    | Model        | Purpose                                                                    |
+| ----------------------- | ------------ | -------------------------------------------------------------------------- |
+| `set_aspect_ratio`      | N/A          | **Required before image generation/editing.** Set aspect ratio for session |
+| `set_image_size`        | N/A          | Set output image size for session (`1K`, `2K`, `4K`)                       |
+| `set_model`             | N/A          | Switch between flash/pro models at runtime                                 |
+| `gemini_chat`           | configurable | Multi-turn conversation with up to 10 images                               |
+| `gemini_generate_image` | configurable | 1K/2K/4K image generation with consistency support                         |
+| `gemini_edit_image`     | configurable | Image editing via natural language                                         |
+| `get_image_history`     | N/A          | View session image history                                                 |
+| `clear_conversation`    | N/A          | Reset conversation context                                                 |
 
 ### Aspect Ratio (Required)
 
@@ -42,13 +43,23 @@ Valid values: `1:1`, `9:16`, `16:9`, `3:4`, `4:3`, `3:2`, `2:3`, `5:4`, `4:5`, `
 
 Must call `set_aspect_ratio` before `gemini_generate_image` or `gemini_edit_image`. No default value - returns error if not set.
 
+### Output Image Size
+
+Use `set_image_size` to set the session output size for image generation and editing.
+
+Valid values: `1K`, `2K`, `4K`
+
+If not set, Gemini API defaults to `1K`.
+
 ### Runtime Model Selection
 
 Use `set_model` tool to switch models per-session without restarting:
+
 - `model="flash"` → gemini-3.1-flash-image-preview (faster, default)
 - `model="pro"` → gemini-3-pro-image-preview (higher quality)
 
 **Slash Commands**:
+
 - Claude Code: `cp commands/claude-code/*.md ~/.claude/commands/`
 - Cursor: `cp commands/cursor/*.md ~/.cursor/commands/`
 - `/nb-flash` - Switch to Flash model
@@ -56,7 +67,7 @@ Use `set_model` tool to switch models per-session without restarting:
 
 ### Session Management
 
-- `conversations` Map stores per-session context (chat history + image history + aspect ratio + model)
+- `conversations` Map stores per-session context (chat history + image history + aspect ratio + image size + model)
 - Image history supports references: `"last"` or `"history:N"`
 - `MAX_IMAGE_HISTORY = 10` images per session (memory management)
 - `MAX_REFERENCE_IMAGES = 3` included in consistency prompts
@@ -64,15 +75,18 @@ Use `set_model` tool to switch models per-session without restarting:
 ### Generated Files
 
 Default save location: `~/Documents/nanobanana_generated/`
+
 - Generated: `generated_[timestamp].png`
 - Edited: `[original]_edited_[timestamp].png`
 
 ## Configuration
 
 **Required:**
+
 - `GOOGLE_AI_API_KEY` - Your Google AI API key
 
 **Optional:**
+
 - `NANOBANANA_MODEL` - Model selection (default: `gemini-3.1-flash-image-preview`)
   - `gemini-3.1-flash-image-preview` - NanoBanana (faster, default)
   - `gemini-3-pro-image-preview` - NanoBanana Pro (higher quality)

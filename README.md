@@ -9,9 +9,10 @@ MCP server that brings Gemini's image generation and editing capabilities to Cla
 
 ## Features
 
-- **Image Generation** - Create 2K images from text prompts
+- **Image Generation** - Create 1K, 2K, or 4K images from text prompts
 - **Image Editing** - Transform images with natural language instructions
 - **Session Consistency** - Maintain style/character across generations
+- **Session Image Size** - Set 1K, 2K, or 4K output per session
 - **Runtime Model Switching** - Switch between Flash and Pro models without restart
 - **Multi-turn Chat** - Conversational context with image support
 
@@ -69,15 +70,16 @@ See [Cursor MCP Documentation](https://cursor.com/docs/context/mcp) for more det
 
 ## Tools
 
-| Tool | Purpose |
-|------|---------|
-| `set_aspect_ratio` | **Required.** Set aspect ratio before image generation |
-| `set_model` | Switch between flash/pro models at runtime |
-| `gemini_generate_image` | Generate images from text prompts |
-| `gemini_edit_image` | Edit images with natural language |
-| `gemini_chat` | Multi-turn conversation with images |
-| `get_image_history` | View session image history |
-| `clear_conversation` | Reset session context |
+| Tool                    | Purpose                                                |
+| ----------------------- | ------------------------------------------------------ |
+| `set_aspect_ratio`      | **Required.** Set aspect ratio before image generation |
+| `set_image_size`        | Set output image size to 1K, 2K, or 4K for the session |
+| `set_model`             | Switch between flash/pro models at runtime             |
+| `gemini_generate_image` | Generate images from text prompts                      |
+| `gemini_edit_image`     | Edit images with natural language                      |
+| `gemini_chat`           | Multi-turn conversation with images                    |
+| `get_image_history`     | View session image history                             |
+| `clear_conversation`    | Reset session context                                  |
 
 ### set_aspect_ratio (Required)
 
@@ -91,10 +93,22 @@ Valid ratios: 1:1, 9:16, 16:9, 3:4, 4:3, 3:2, 2:3, 5:4, 4:5, 21:9
 
 Switch models per-session without restarting:
 
-| Value | Model | Description |
-|-------|-------|-------------|
+| Value   | Model                          | Description                      |
+| ------- | ------------------------------ | -------------------------------- |
 | `flash` | gemini-3.1-flash-image-preview | Nano Banana 2 - Faster (default) |
-| `pro` | gemini-3-pro-image-preview | Nano Banana Pro - Higher quality |
+| `pro`   | gemini-3-pro-image-preview     | Nano Banana Pro - Higher quality |
+
+### set_image_size
+
+Set image output size per-session:
+
+| Value | Description                   |
+| ----- | ----------------------------- |
+| `1K`  | Gemini API default image size |
+| `2K`  | Higher resolution output      |
+| `4K`  | Maximum supported output size |
+
+If not set, Gemini API defaults to `1K`.
 
 ### gemini_generate_image
 
@@ -109,6 +123,8 @@ Switch models per-session without restarting:
 }
 ```
 
+Uses the current session image size set via `set_image_size`.
+
 ### gemini_edit_image
 
 ```typescript
@@ -121,6 +137,8 @@ Switch models per-session without restarting:
   reference_images?: string[]; // Style references
 }
 ```
+
+Uses the current session image size set via `set_image_size`.
 
 ## Slash Commands
 
@@ -157,7 +175,8 @@ See [Cursor Slash Commands](https://cursor.com/changelog/1-6) for more details.
 
 ```
 1. Set aspect ratio: set_aspect_ratio("16:9")
-2. Generate: "A cyberpunk cityscape at sunset"
+2. Optional: set image size: set_image_size("2K")
+3. Generate: "A cyberpunk cityscape at sunset"
 ```
 
 ### Character Consistency
@@ -196,14 +215,17 @@ set_model({ model: "pro" })
 
 ### Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `GOOGLE_AI_API_KEY` | Yes | Google AI API key |
-| `NANOBANANA_MODEL` | No | Default model (`gemini-3.1-flash-image-preview` or `gemini-3-pro-image-preview`) |
+| Variable            | Required | Description                                                                      |
+| ------------------- | -------- | -------------------------------------------------------------------------------- |
+| `GOOGLE_AI_API_KEY` | Yes      | Google AI API key                                                                |
+| `NANOBANANA_MODEL`  | No       | Default model (`gemini-3.1-flash-image-preview` or `gemini-3-pro-image-preview`) |
+
+Image size is configured per session via `set_image_size`. If not set, Gemini defaults to `1K`.
 
 ### Output Location
 
 Generated images save to `~/Documents/nanobanana_generated/`:
+
 - Generated: `generated_[timestamp].png`
 - Edited: `[original]_edited_[timestamp].png`
 
@@ -221,11 +243,13 @@ npm run start    # Run compiled server
 ## Troubleshooting
 
 **Image generation fails:**
+
 - Verify API key is valid
 - Check quota at [Google AI Studio](https://aistudio.google.com)
 - Ensure `set_aspect_ratio` was called first
 
 **Tools not showing:**
+
 1. Restart Claude Desktop/Code
 2. Check config file syntax
 3. Verify `npx -y @ycse/nanobanana-mcp` runs without errors

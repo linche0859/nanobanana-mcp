@@ -4,7 +4,7 @@
   "display_name": "NanoBanana MCP",
   "version": "1.1.0",
   "description": "Gemini image generation, editing, and vision for Claude Desktop",
-  "long_description": "MCP server that brings Google Gemini's multimodal capabilities to Claude. Generate 2K images, edit existing images with natural language, chat with vision support, and maintain style consistency across sessions. Supports both Flash (fast) and Pro (high quality) models with runtime switching.",
+  "long_description": "MCP server that brings Google Gemini's multimodal capabilities to Claude. Generate configurable 1K, 2K, or 4K images, edit existing images with natural language, chat with vision support, and maintain style consistency across sessions. Supports both Flash (fast) and Pro (high quality) models with runtime switching.",
   "author": {
     "name": "YCSE",
     "url": "https://github.com/YCSE"
@@ -44,7 +44,7 @@
     },
     {
       "name": "gemini_generate_image",
-      "description": "Generate 2K images with session-based style/character consistency"
+      "description": "Generate 1K, 2K, or 4K images with session-based style/character consistency"
     },
     {
       "name": "gemini_edit_image",
@@ -53,6 +53,10 @@
     {
       "name": "set_aspect_ratio",
       "description": "Set aspect ratio for image generation and editing"
+    },
+    {
+      "name": "set_image_size",
+      "description": "Set output image size to 1K, 2K, or 4K for a session"
     },
     {
       "name": "set_model",
