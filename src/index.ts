@@ -342,13 +342,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'gemini_generate_image',
         description:
-          "Generate images using Gemini's image generation capabilities. Supports session-based image consistency for maintaining style/character across multiple generations.",
+          "Generate images using Gemini's image generation capabilities. Supports session-based image consistency and optional per-request image size override (1K, 2K, 4K).",
         inputSchema: {
           type: 'object',
           properties: {
             prompt: {
               type: 'string',
               description: 'Description of the image to generate',
+            },
+            image_size: {
+              type: 'string',
+              enum: [...VALID_IMAGE_SIZES],
+              description:
+                'Optional image size override for this request. If omitted, uses the session setting or Gemini API default 1K.',
             },
             aspect_ratio: {
               type: 'string',
@@ -401,6 +407,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             edit_prompt: {
               type: 'string',
               description: 'Instructions for how to edit the image',
+            },
+            image_size: {
+              type: 'string',
+              enum: [...VALID_IMAGE_SIZES],
+              description:
+                'Optional image size override for this request. If omitted, uses the session setting or Gemini API default 1K.',
             },
             aspect_ratio: {
               type: 'string',
@@ -648,6 +660,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'gemini_generate_image': {
         const {
           prompt,
+          image_size,
           aspect_ratio,
           output_path,
           conversation_id = 'default',
@@ -658,7 +671,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         try {
           // 대화 컨텍스트 가져오기/생성
           const context = getOrCreateContext(conversation_id);
-          const effectiveImageSize = context.imageSize;
+
+          if (
+            image_size &&
+            !VALID_IMAGE_SIZES.includes(image_size as ImageSize)
+          ) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Invalid image size: ${image_size}. Valid: ${VALID_IMAGE_SIZES.join(', ')}`,
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const effectiveImageSize =
+            (image_size as ImageSize | undefined) ?? context.imageSize;
 
           // Validate directly passed aspect_ratio
           if (
@@ -860,6 +890,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const {
           image_path,
           edit_prompt,
+          image_size,
           aspect_ratio,
           output_path,
           conversation_id = 'default',
@@ -869,7 +900,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         try {
           // 대화 컨텍스트 가져오기/생성
           const context = getOrCreateContext(conversation_id);
-          const effectiveImageSize = context.imageSize;
+
+          if (
+            image_size &&
+            !VALID_IMAGE_SIZES.includes(image_size as ImageSize)
+          ) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Invalid image size: ${image_size}. Valid: ${VALID_IMAGE_SIZES.join(', ')}`,
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const effectiveImageSize =
+            (image_size as ImageSize | undefined) ?? context.imageSize;
 
           // Validate directly passed aspect_ratio
           if (

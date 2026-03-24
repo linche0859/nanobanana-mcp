@@ -115,6 +115,7 @@ If not set, Gemini API defaults to `1K`.
 ```typescript
 {
   prompt: string;              // Image description
+  image_size?: string;         // Optional: 1K, 2K, or 4K for this request
   aspect_ratio?: string;       // Override session ratio
   output_path?: string;        // Save path (default: ~/Documents/nanobanana_generated/)
   conversation_id?: string;    // Session ID
@@ -123,7 +124,7 @@ If not set, Gemini API defaults to `1K`.
 }
 ```
 
-Uses the current session image size set via `set_image_size`.
+`image_size` takes priority over the current session image size set via `set_image_size`.
 
 ### gemini_edit_image
 
@@ -131,6 +132,7 @@ Uses the current session image size set via `set_image_size`.
 {
   image_path: string;          // File path, "last", or "history:N"
   edit_prompt: string;         // Edit instructions
+  image_size?: string;         // Optional: 1K, 2K, or 4K for this request
   aspect_ratio?: string;       // Override session ratio
   output_path?: string;        // Save path
   conversation_id?: string;    // Session ID
@@ -138,7 +140,7 @@ Uses the current session image size set via `set_image_size`.
 }
 ```
 
-Uses the current session image size set via `set_image_size`.
+`image_size` takes priority over the current session image size set via `set_image_size`.
 
 ## Slash Commands
 
