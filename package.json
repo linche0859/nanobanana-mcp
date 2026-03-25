@@ -1,7 +1,7 @@
 {
   "name": "@linche0859/nanobanana-mcp",
   "version": "1.1.1",
-  "description": "MCP server for Gemini 3.1 Flash with vision, chat, and image generation capabilities",
+  "description": "Nano Banana MCP server for image generation with controllable output quality",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
