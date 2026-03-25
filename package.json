@@ -1,11 +1,11 @@
 {
-  "name": "@ycse/nanobanana-mcp",
+  "name": "@linche0859/nanobanana-mcp",
   "version": "1.1.1",
   "description": "MCP server for Gemini 3.1 Flash with vision, chat, and image generation capabilities",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
-    "nanobanana-mcp": "./dist/index.js"
+    "nanobanana-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -23,16 +23,16 @@
     "claude",
     "model-context-protocol"
   ],
-  "author": "YCSE",
+  "author": "linche0859",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YCSE/nanobanana-mcp.git"
+    "url": "git+https://github.com/linche0859/nanobanana-mcp.git"
   },
   "bugs": {
-    "url": "https://github.com/YCSE/nanobanana-mcp/issues"
+    "url": "https://github.com/linche0859/nanobanana-mcp/issues"
   },
-  "homepage": "https://github.com/YCSE/nanobanana-mcp#readme",
+  "homepage": "https://github.com/linche0859/nanobanana-mcp#readme",
   "dependencies": {
     "@google/genai": "^1.16.0",
     "@google/generative-ai": "^0.21.0",

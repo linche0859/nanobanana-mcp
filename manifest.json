@@ -2,19 +2,19 @@
   "manifest_version": "0.3",
   "name": "nanobanana-mcp",
   "display_name": "NanoBanana MCP",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Gemini image generation, editing, and vision for Claude Desktop",
   "long_description": "MCP server that brings Google Gemini's multimodal capabilities to Claude. Generate configurable 1K, 2K, or 4K images, edit existing images with natural language, chat with vision support, and maintain style consistency across sessions. Supports both Flash (fast) and Pro (high quality) models with runtime switching.",
   "author": {
-    "name": "YCSE",
-    "url": "https://github.com/YCSE"
+    "name": "linche0859",
+    "url": "https://github.com/linche0859"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/YCSE/nanobanana-mcp.git"
+    "url": "https://github.com/linche0859/nanobanana-mcp.git"
   },
-  "homepage": "https://github.com/YCSE/nanobanana-mcp#readme",
-  "support": "https://github.com/YCSE/nanobanana-mcp/issues",
+  "homepage": "https://github.com/linche0859/nanobanana-mcp#readme",
+  "support": "https://github.com/linche0859/nanobanana-mcp/issues",
   "license": "MIT",
   "keywords": [
     "mcp",
