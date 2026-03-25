@@ -29,6 +29,28 @@ MCP server that brings Gemini's image generation and editing capabilities to Cla
 - Node.js 18+
 - Google AI API Key ([Get one here](https://makersuite.google.com/app/apikey))
 
+### Installation Notes
+
+This package is published to the npm registry:
+
+```bash
+@linche0859/nanobanana-mcp -> https://registry.npmjs.org/
+```
+
+If your local npm configuration maps the `@linche0859` scope to GitHub Packages or another private registry, `npx`, `npm install`, and `npm view` may fail with `404`, `401`, or `403` errors even though the package exists on npmjs.
+
+You can check your current scoped registry with:
+
+```bash
+npm config get @linche0859:registry
+```
+
+If needed, install or run the package with an explicit override:
+
+```bash
+npx -y @linche0859/nanobanana-mcp --@linche0859:registry=https://registry.npmjs.org/
+```
+
 ### Add to Claude Code
 
 ```bash
@@ -257,6 +279,20 @@ npm run start    # Run compiled server
 - Verify API key is valid
 - Check quota at [Google AI Studio](https://aistudio.google.com)
 - Ensure `set_aspect_ratio` was called first
+
+**Package install or npx fails with `404`, `401`, or `403`:**
+
+- Check which registry npm uses for the `@linche0859` scope: `npm config get @linche0859:registry`
+- If the result is `https://npm.pkg.github.com/` or another non-npmjs registry, npm may be resolving this package from the wrong source
+- For a one-off run, use: `npx -y @linche0859/nanobanana-mcp --@linche0859:registry=https://registry.npmjs.org/`
+- For installs, use: `npm install @linche0859/nanobanana-mcp --@linche0859:registry=https://registry.npmjs.org/`
+- To make npmjs the default source for this scope on your machine, add this to your user-level `.npmrc`:
+
+```ini
+@linche0859:registry=https://registry.npmjs.org/
+```
+
+If you intentionally use GitHub Packages for other `@linche0859/*` packages, prefer setting a project-level `.npmrc` only where that alternate registry is actually required.
 
 **Tools not showing:**
 
